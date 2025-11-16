@@ -57,7 +57,25 @@
 | PATCH | `/notifications/:id/read` | 既読処理 | `{ id, readFlag: true }` |
 | GET | `/progress/summary` | 学習者の進捗サマリ | `{ completedAssignments, badges, weeklyStats }` |
 
-## 7. データモデル（抜粋）
+## 7. LLM アシスタント系
+| メソッド | パス | 概要 | 主要レスポンス |
+| --- | --- | --- | --- |
+| POST | `/assistants/questions` | IDE から LLM へ質問を送信し回答を生成 | `QuestionThread` |
+| GET | `/assistants/questions` | 自分の質問履歴・ステータス取得 | `QuestionThread[]` |
+| POST | `/assistants/questions/:id/feedback` | 回答に対する評価・タグ付け | `{ id, rating, tags[] }` |
+| GET | `/assistants/moderation` (講師) | 学習者の質問ログをレビュー | `QuestionThread[]` |
+
+## 8. 学習管理 (LMS) 系
+| メソッド | パス | 概要 | 主要レスポンス |
+| --- | --- | --- | --- |
+| GET | `/classes` | 担当クラス／受講グループ一覧 | `Classroom[]` |
+| POST | `/classes` | 新規クラス作成・受講者割当 | `Classroom` |
+| PATCH | `/classes/:id` | クラス情報更新（スケジュール、担当） | `Classroom` |
+| GET | `/classes/:id/progress` | クラス全体の進捗・提出状況 | `{ learners: ProgressSummary[] }` |
+| POST | `/classes/:id/lock` | 課題進行のロック/解放、出席管理 | `{ classId, locked: boolean }` |
+| GET | `/classes/:id/reports` | レポート生成・保護者共有リンク取得 | `Report[]` |
+
+## 9. データモデル（抜粋）
 ```json
 User {
   id: string,
@@ -97,21 +115,52 @@ Submission {
   feedback?: string
 }
 ```
+```json
+QuestionThread {
+  id: string,
+  userId: string,
+  assignmentId?: string,
+  prompt: string,
+  response: string,
+  model: string,
+  rating?: number,
+  tags?: string[],
+  visibility: "private" | "shared",
+  createdAt: string
+}
+```
+```json
+Classroom {
+  id: string,
+  title: string,
+  instructorId: string,
+  learnerIds: string[],
+  schedule: {
+    startDate: string,
+    endDate?: string,
+    sessions: SessionSlot[]
+  },
+  reports: ReportSummary[]
+}
+```
 
-## 8. エラーコード例
+## 10. エラーコード例
 | コード | HTTP | 意味 |
 | --- | --- | --- |
 | `AUTH_INVALID_CODE` | 401 | OAuth コードが不正 |
 | `COURSE_NOT_FOUND` | 404 | コースが存在しない |
 | `SUBMISSION_LOCKED` | 409 | レビュー中のため更新不可 |
 | `SANDBOX_TIMEOUT` | 504 | 実行タイムアウト |
+| `ASSISTANT_RATE_LIMIT` | 429 | LLM 質問のレート制限超過 |
+| `CLASSROOM_LOCKED` | 423 | クラスがロック状態で操作不可 |
 
-## 9. サンドボックス制約
+## 11. サンドボックス制約
 - 各セッションに CPU 1core / RAM 2GB / ディスク 2GB を割り当て。
 - 実行タイムアウト 90 秒、プレビュー URL は署名付きで 5 分有効。
 - アウトバウンド通信は npm registry / Git リポジトリのみ許可（将来拡張可）。
 
-## 10. 今後の拡張候補
+## 12. 今後の拡張候補
 - GraphQL API の並行提供（IDE からの型安全な取得）。
 - メトリクス配信用の Webhook / SSE。
 - LTI / Classroom 連携用 API セット。
+- AI モデル選択 API、回答テンプレートのカスタマイズ、保護者ポータル向けレポート API。

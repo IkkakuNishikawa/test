@@ -10,6 +10,8 @@
   - 下：ターミナル（npm install / test / lint 実行ログ）。
 - **レビュー画面**: 講師コメント、差分ビュー、再提出ボタン。
 - **設定画面**: プロファイル、通知設定、キーバインド変更。
+- **AI アシスタントパネル**: IDE サイドバーで LLM への質問、コード補完ヒント、過去質問履歴を表示。
+- **学習管理 (LMS) 画面**: クラス／受講者一覧、出席・課題提出状況、レポート出力、保護者共有リンクの管理。
 
 ## 2. 業務フロー（学習者）
 1. ログイン（SSO/OAuth）→初回ガイダンス。
@@ -24,6 +26,8 @@
 - UC-03: 提出・講師レビュー・コメント確認。
 - UC-04: 学習分析ダッシュボード閲覧。
 - UC-05: 講師による課題作成・公開とレビューフロー。
+- UC-06: IDE 内 AI アシスタントへの質問と回答フィードバック。
+- UC-07: 学習管理者によるクラス編成・進捗ロック/解放、レポート出力。
 
 ## 4. データ項目（抜粋）
 | エンティティ | 主な属性 |
@@ -34,6 +38,8 @@
 | Submission | id, assignmentId, userId, codeSnapshot, status, score, feedback |
 | SandboxSession | id, submissionId, nodeVersion, reactVersion, resources, logs[] |
 | Notification | id, userId, type, message, readFlag |
+| QuestionThread | id, userId, assignmentId, prompt, response, rating, visibility |
+| Classroom | id, title, instructorId, learnerIds[], schedule, reports[] |
 
 ## 5. 外部インターフェース
 - **認証**: 学校・塾の OIDC プロバイダ、社内 OAuth クライアント。
@@ -43,10 +49,11 @@
 
 ## 6. アーキテクチャ概要
 - フロントエンド: React 18 + Vite、SPA として配信。
-- バックエンド: Node.js 20 + Express + GraphQL/REST ハイブリッド（v1 では REST）。
-- サンドボックス: コンテナベースの実行環境（CPU 1core / RAM 2GB / 90 秒タイムアウト）。
+- バックエンド: Node.js 20 + Express + GraphQL/REST ハイブリッド（v1 では REST）。LLM アダプタサービスを内包し、外部 LLM API へ Server-to-Server で接続。
+- サンドボックス: WebContainer を IDE に組み込み。ネイティブ依存課題のみクラウド実行（フォールバック API）を提供。
 - データベース: PostgreSQL（学習データ）、Redis（セッション、ジョブキュー）。
 - インフラ: Kubernetes 上で API/IDE/サンドボックスをマイクロサービスとして展開。
+- AI 接続: OpenAI / Azure OpenAI / Anthropic 等の API を HTTPS で呼び出し、プロンプト・レスポンスを監査テーブルに保存。
 
 ## 7. 権限設計（外部仕様）
 - 学習者: 自身の課題閲覧・編集、提出、レビュー閲覧。
